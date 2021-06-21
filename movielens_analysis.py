@@ -1,3 +1,6 @@
+import re
+import pytest
+
 class Movies:
     """
     Analyzing data from movies.csv
@@ -7,12 +10,47 @@ class Movies:
         """
         Put here any fields that you think you will need.
         """
+        self.path = path_to_the_file
+        with open(self.path, 'r') as f:
+            self.data = f.read().split('\n')
+            del (self.data[0])
+        self.movies = self.parse_movies()
+
+    def parse_movies(self):
+        d = {}
+        for item in self.data:
+            try:
+                split_left = item.split(',', maxsplit=1)
+                if split_left:
+                    id = split_left[0]
+                    title, genres = split_left[1].rsplit(',', maxsplit=1)
+                    genres = genres.split('|')
+                    year = re.search(r"\((\d{4})\)", title)
+                    if year:
+                        year = year.groups()
+                        year = int(year[0] if year.__len__() > 0 else 0)
+                    else:
+                        year = 0
+                    title = re.search(r'(.*?)(?:\s+\(\d{4}\))', title)
+                    if title:
+                        title = title.groups()
+                        title = title[0] if title.__len__() > 0 else None
+                    d[id] = {'title': title,
+                             'year': year,
+                             'genres': genres}
+            except:
+                pass
+        return d
 
     def dist_by_release(self):
         """
         The method returns a dict or an OrderedDict where the keys are years and the values are counts.
         You need to extract years from the titles. Sort it by counts descendingly.
         """
+        release_years = {}
+        for k, v in self.movies.items():
+           release_years[v['year']] = release_years.get(v['year'], 0) + 1
+        release_years = dict(sorted(release_years.items(), key=lambda item: item[1], reverse=True))
         return release_years
 
     def dist_by_genres(self):
@@ -20,6 +58,11 @@ class Movies:
         The method returns a dict where the keys are genres and the values are counts.
      Sort it by counts descendingly.
         """
+        genres = {}
+        for k, v in self.movies.items():
+            for genre in v['genres']:
+                genres[genre] = genres.get(genre, 0) + 1
+        genres = dict(sorted(genres.items(), key=lambda item: item[1], reverse=True))
         return genres
 
     def most_genres(self, n):
@@ -27,6 +70,11 @@ class Movies:
         The method returns a dict with top-n movies where the keys are movie titles and
         the values are the number of genres of the movie. Sort it by numbers descendingly.
         """
+        movies = {}
+        for k, v in self.movies.items():
+            movies[v['title']] = v['genres'].__len__()
+        movies = dict(sorted(movies.items(), key=lambda item: item[1], reverse=True))
+        movies = dict(list(movies.items())[:n])
         return movies
 
 
@@ -39,6 +87,37 @@ class Ratings:
         """
         Put here any fields that you think you will need.
         """
+        self.path = path_to_the_file
+        with open(self.path, 'r') as f:
+            self.data = f.read().split('\n')
+            del (self.data[0])
+        self.ratings = self.parse()
+
+    def parse(self):
+        d = {}
+        for item in self.data:
+            try:
+                split_left = item.split(',', maxsplit=1)
+                if split_left:
+                    id = split_left[0]
+                    title, genres = split_left[1].rsplit(',', maxsplit=1)
+                    genres = genres.split('|')
+                    year = re.search(r"\((\d{4})\)", title)
+                    if year:
+                        year = year.groups()
+                        year = int(year[0] if year.__len__() > 0 else 0)
+                    else:
+                        year = 0
+                    title = re.search(r'(.*?)(?:\s+\(\d{4}\))', title)
+                    if title:
+                        title = title.groups()
+                        title = title[0] if title.__len__() > 0 else None
+                    d[id] = {'title': title,
+                             'year': year,
+                             'genres': genres}
+            except:
+                pass
+        return d
 
     class Movies:
         def dist_by_year(self):
@@ -63,7 +142,7 @@ class Ratings:
             """
             return top_movies
 
-        def top_by_ratings(self, n, metric=average):
+        def top_by_ratings(self, n, metric='average'):
             """
             The method returns top-n movies by the average or median of the ratings.
             It is a dict where the keys are movie titles and the values are metric values.
@@ -100,6 +179,14 @@ class Tags:
         """
         Put here any fields that you think you will need.
         """
+        self.path = path_to_the_file
+        with open(self.path, 'r') as f:
+            self.data = f.read().split('\n')
+            del (self.data[0])
+        self.tags = self.parse()
+
+    def parse(self):
+        return [i.split(',') for i in self.data]
 
     def most_words(self, n):
         """
@@ -107,6 +194,14 @@ class Tags:
  where the keys are tags and the values are the number of words inside the tag.
  Drop the duplicates. Sort it by numbers descendingly.
         """
+        d = {}
+        for i in self.tags:
+            try:
+                d[i[2]] = d.get(i[2], 0) + 1
+            except:
+                pass
+        d = dict(sorted(d.items(), key=lambda item: item[1], reverse=True))
+        big_tags = dict(list(d.items())[:n])
         return big_tags
 
     def longest(self, n):
@@ -196,3 +291,29 @@ the values are the budgets divided by their runtime. The budgets can be in diffe
      The values should be rounded to 2 decimals. Sort it by the division descendingly.
         """
         return costs
+
+class Test:
+
+    def test_movies(self):
+        movies = Movies('movies.csv')
+        assert type(movies.dist_by_release()) == dict
+        assert list(movies.dist_by_release().values()) == list(sorted(movies.dist_by_release().values(), reverse=True))
+        assert type(movies.dist_by_genres()) == dict
+        assert list(movies.dist_by_genres().values()) == list(sorted(movies.dist_by_genres().values(), reverse=True))
+        assert type(movies.most_genres(3)) == dict
+        assert list(movies.most_genres(3).values()) == list(sorted(movies.most_genres(3).values(), reverse=True))
+
+    def test_tags(self):
+        tags = Tags('tags.csv')
+        assert type(tags.most_words(10)) == dict
+        assert list(tags.most_words(10).values()) == list(sorted(tags.most_words(10).values(), reverse=True))
+
+if __name__ == '__main__':
+    movies = Movies('movies.csv')
+    print(movies.dist_by_release())
+    print(movies.dist_by_genres())
+    print(movies.most_genres(3))
+    ratings = Ratings('ratings.csv')
+    links = Links('links.csv')
+    tags = Tags('tags.csv')
+    print(tags.most_words(5))
